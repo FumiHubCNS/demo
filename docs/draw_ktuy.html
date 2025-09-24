@@ -5,12 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>demo.draw_ktuy API documentation</title>
-<meta name="description" content="!
-@file draw_ktuy.py
-@version 1
-@author Fumitaka ENDO
-@date 2025-09-24T16:46:46+09:00
-@brief Draw nuclear chart using KTUY mass model">
+<meta name="description" content="draw_ktuy.py
+…">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -43,12 +39,8 @@ el.replaceWith(d);
 <h1 class="title">Module <code>demo.draw_ktuy</code></h1>
 </header>
 <section id="section-intro">
-<p>!
-@file draw_ktuy.py
-@version 1
-@author Fumitaka ENDO
-@date 2025-09-24T16:46:46+09:00
-@brief Draw nuclear chart using KTUY mass model</p>
+<h1 id="draw_ktuypy">draw_ktuy.py</h1>
+<p>KTUY質量公式を使って計算した核図表と液滴モデルとの質量欠損差を描画するコード</p>
 </section>
 <section>
 </section>
@@ -57,23 +49,83 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="demo.draw_ktuy.common_options"><code class="name flex">
-<span>def <span class="ident">common_options</span></span>(<span>func)</span>
+<dt id="demo.draw_ktuy.main"><code class="name flex">
+<span>def <span class="ident">main</span></span>(<span>) ‑> None</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def common_options(func):
-    @click.option(&#39;--name&#39;, &#39;-n&#39;, default=&#39;World&#39;, show_default=True, help=&#39;Your name&#39;)
-    @click.option(&#39;--date&#39;, &#39;-d&#39;, type=click.DateTime(formats=[&#34;%Y-%m-%d&#34;]), default=lambda: datetime.datetime.now(), show_default=lambda: datetime.datetime.now().strftime(&#34;%Y-%m-%d&#34;), help=&#34;Date in YYYY-MM-DD format&#34;)
-    @click.option(&#39;--verbose&#39;, &#39;-v&#39;, is_flag=True, help=&#39;verbose flag&#39;)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-    return wrapper</code></pre>
+<pre><code class="python">def main() -&gt; None:
+    &#34;&#34;&#34;
+    メイン関数
+    &#34;&#34;&#34;
+
+    base_inputpath = src_path / &#39;input&#39;
+
+    ktuy = pd.read_csv(base_inputpath / &#39;ktuy05_exist.csv&#39;)
+    ame20 = pd.read_csv(base_inputpath / &#39;ame2020_wb.csv&#39;)
+    ktuy_magic = pd.read_csv(base_inputpath / &#39;magic_number_ktuy05.csv&#39;)
+    sabilities = pd.read_csv(base_inputpath / &#39;stable_nuclei.csv&#39;)
+
+    # 質量欠損差を計算
+    ame20[&#39;diff&#39;] = (ame20.M_ex - ame20.M_wb) / 1.e3
+    n_vals = np.sort(ame20[&#39;N&#39;].unique())
+    z_vals = np.sort(ame20[&#39;Z&#39;].unique())
+    n_edges = np.r_[n_vals - 0.5, n_vals[-1] + 0.5]
+    z_edges = np.r_[z_vals - 0.5, z_vals[-1] + 0.5]
+
+    # KTUY質量公式において存在できる原子核を抜き出す
+    exist = ktuy[ktuy[&#39;exist&#39;] == True]
+
+    ms = 2
+
+    grid = (
+        ame20
+        .pivot(index=&#39;Z&#39;, columns=&#39;N&#39;, values=&#39;diff&#39;)
+        .reindex(index=z_vals, columns=n_vals)
+        .to_numpy()
+    )
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    cmap = plt.cm.viridis
+
+    X, Y = np.meshgrid(n_edges, z_edges)
+
+    ax.scatter(exist[&#34;N&#34;], exist[&#34;Z&#34;], s=ms, c=&#39;gray&#39;, marker=&#39;,&#39;, label=&#39;KTUY05&#39;)
+
+    for i in range(len(ktuy_magic)):
+
+        if not (np.isnan(ktuy_magic.N[i])) and (ktuy_magic.N[i] &lt; exist.N.max()):
+            valmagic = [float(ktuy_magic.N[i]), float(ktuy_magic.N[i])]
+            ax.plot(valmagic, [0, exist.Z.max()], color=&#34;gray&#34;, zorder=-1, lw=0.75, ls=&#39;-.&#39;)
+
+        if not (np.isnan(ktuy_magic.Z[i])) and (ktuy_magic.Z[i] &lt; exist.Z.max()):
+            valmagic = [float(ktuy_magic.Z[i]), float(ktuy_magic.Z[i])]
+            ax.plot([0, exist.N.max()], valmagic, color=&#34;gray&#34;, zorder=-1, lw=0.75, ls=&#39;-.&#39;)
+
+    c = ax.pcolormesh(X, Y, grid, cmap=cmap, shading=&#39;flat&#39;)
+
+    ax.scatter(sabilities[&#34;N&#34;], sabilities[&#34;Z&#34;], s=ms, c=&#39;black&#39;, marker=&#39;,&#39;, label=&#39;Stable&#39;)
+
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes(&#34;right&#34;, size=&#34;5%&#34;, pad=0.1)
+    cbar = fig.colorbar(c, cax=cax)
+    cbar.set_label(r&#39;Mass Difference between AME2020 and Bethe-Weizsäcker [MeV]&#39;)
+
+    ax.set_xlabel(&#39;Neutron Number (N)&#39;)
+    ax.set_ylabel(&#39;Proton Number (Z)&#39;)
+
+    ax.set_xlim(0, exist.N.max())
+    ax.set_ylim(0, exist.Z.max())
+    ax.legend(loc=&#39;upper left&#39;)
+
+    ax.set_aspect(&#34;equal&#34;)
+    plt.tight_layout()
+    plt.show()</code></pre>
 </details>
-<div class="desc"></div>
+<div class="desc"><p>メイン関数</p></div>
 </dd>
 </dl>
 </section>
@@ -82,7 +134,9 @@ el.replaceWith(d);
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul></ul>
+<ul>
+<li><a href="#draw_ktuypy">draw_ktuy.py</a></li>
+</ul>
 </div>
 <ul id="index">
 <li><h3>Super-module</h3>
@@ -92,7 +146,7 @@ el.replaceWith(d);
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="demo.draw_ktuy.common_options" href="#demo.draw_ktuy.common_options">common_options</a></code></li>
+<li><code><a title="demo.draw_ktuy.main" href="#demo.draw_ktuy.main">main</a></code></li>
 </ul>
 </li>
 </ul>
