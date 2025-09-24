@@ -7,7 +7,15 @@ authors = [
     { name = "FumiHubCNS", email = "fendo@cns.s.u-tokyo.ac.jp" }
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "click>=8.3.0",
+    "matplotlib>=3.10.6",
+    "numpy>=2.2.6",
+    "pandas>=2.3.2",
+]
+
+[project.scripts]
+chart = "demo.draw_ktuy:main"
 
 [build-system]
 requires = ["hatchling"]
